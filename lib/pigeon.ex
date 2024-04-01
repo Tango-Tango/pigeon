@@ -27,6 +27,8 @@ defmodule Pigeon do
 
   alias Pigeon.Tasks
 
+  require Logger
+
   @default_timeout 5_000
 
   @typedoc ~S"""
@@ -130,11 +132,14 @@ defmodule Pigeon do
   end
 
   defp push_async(pid, notification) do
+    random_integer = :rand.uniform(2_000_000)
+    Logger.info("Attempting to push notification #{random_integer}", source: __MODULE__, identifier: random_integer)
     case Pigeon.Registry.next(pid) do
       nil ->
         Tasks.process_on_response(%{notification | response: :not_started})
 
       pid ->
+        Logger.info("Got pid from registry for #{random_integer}", source: __MODULE__, identifier: random_integer)
         send(pid, {:"$push", notification})
         :ok
     end

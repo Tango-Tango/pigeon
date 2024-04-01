@@ -2,6 +2,7 @@ defmodule Pigeon.DispatcherWorker do
   @moduledoc false
 
   use GenServer
+  require Logger
 
   def start_link(opts) do
     opts[:adapter] || raise "adapter is not specified"
@@ -25,6 +26,7 @@ defmodule Pigeon.DispatcherWorker do
 
   @impl GenServer
   def handle_info({:"$push", notification}, %{adapter: adapter, state: state}) do
+    Logger.info("Received and processing push notification #{inspect(notification, pretty: true)}", source: __MODULE__, state: state)
     case adapter.handle_push(notification, state) do
       {:noreply, new_state} ->
         {:noreply, %{adapter: adapter, state: new_state}}

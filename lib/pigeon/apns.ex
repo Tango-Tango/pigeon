@@ -88,7 +88,7 @@ defmodule Pigeon.APNS do
   ```
   n = Pigeon.APNS.Notification.new("your message", "your device token", "your push topic")
   ```
-   
+
   5. Send the packet. Pushes are synchronous and return the notification with an
    updated `:response` key.
 
@@ -133,8 +133,8 @@ defmodule Pigeon.APNS do
   openssl pkcs12 -legacy -clcerts -nokeys -out cert.pem -in cert.p12
   ```
 
-  6. Convert the key. Be sure to set a PEM pass phrase here. The pass phrase must be 4 or 
-     more characters in length or this will not work. You will need that pass phrase added 
+  6. Convert the key. Be sure to set a PEM pass phrase here. The pass phrase must be 4 or
+     more characters in length or this will not work. You will need that pass phrase added
      here in order to remove it in the next step.
 
   ```
@@ -156,6 +156,8 @@ defmodule Pigeon.APNS do
             config: nil
 
   @behaviour Pigeon.Adapter
+
+  require Logger
 
   alias Pigeon.{Configurable, NotificationQueue}
   alias Pigeon.APNS.ConfigParser
@@ -183,6 +185,7 @@ defmodule Pigeon.APNS do
     headers = Configurable.push_headers(config, notification, [])
     payload = Configurable.push_payload(config, notification, [])
 
+    Logger.info("Attempting to send APNS notification, stream id #{state.stream_id}", source: __MODULE__, stream_id: state.stream_id)
     Client.default().send_request(state.socket, headers, payload)
 
     new_q = NotificationQueue.add(queue, state.stream_id, notification)
@@ -222,7 +225,9 @@ defmodule Pigeon.APNS do
   @impl true
   def handle_info(msg, state) do
     case Client.default().handle_end_stream(msg, state) do
-      {:ok, %Stream{} = stream} -> process_end_stream(stream, state)
+      {:ok, %Stream{} = stream} ->
+        Logger.info("Got message, process end stream for id: #{stream.id}", source: __MODULE__, stream_id: stream.id)
+        process_end_stream(stream, state)
       _else -> {:noreply, state}
     end
   end
