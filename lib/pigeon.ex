@@ -121,14 +121,23 @@ defmodule Pigeon do
     notification = put_on_response(notification, on_response)
 
     worker_info =
-      with {:ok, worker_pid} when is_pid(worker_pid) <- push_async(pid, notification) do
+      with {:ok, worker_pid} when is_pid(worker_pid) <-
+             push_async(pid, notification) do
         GenServer.call(worker_pid, :info)
+      end
+
+    timeout =
+      if timeout == :dynamic do
+        worker_info.average_response_time_ms * 2
+      else
+        timeout
       end
 
     receive do
       {:"$push", ^ref, x} -> x |> put_worker_info(worker_info)
     after
-      timeout -> %{notification | response: :timeout} |> put_worker_info(worker_info)
+      timeout ->
+        %{notification | response: :timeout} |> put_worker_info(worker_info)
     end
   end
 
@@ -149,5 +158,5 @@ defmodule Pigeon do
   end
 
   defp put_worker_info(response, info) when is_map(info), do: Map.put(response, :worker_info, info)
-  defp put_worker_info(response, _), do: response
+
 end
