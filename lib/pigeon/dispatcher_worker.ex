@@ -42,12 +42,13 @@ defmodule Pigeon.DispatcherWorker do
   def init(opts) do
     case opts[:adapter].init(opts) do
       {:ok, state} ->
-        Pigeon.Registry.register(opts[:supervisor])
+        Pigeon.Registry.register(opts[:supervisor], 0)
 
         state =
           state
           |> Map.put(:timing_data, TimingData.new(opts))
           |> Map.put(:on_timeout, opts[:on_timeout])
+          |> Map.put(:supervisor, opts[:supervisor])
 
         {:ok, %{adapter: opts[:adapter], state: state}}
 
@@ -109,6 +110,8 @@ defmodule Pigeon.DispatcherWorker do
         &TimingData.update(&1, response_time_native)
       )
 
+    set_priority(state.supervisor, state.timing_data.average_native)
+
     {:noreply, %{adapter: adapter, state: state}}
   end
 
@@ -132,5 +135,12 @@ defmodule Pigeon.DispatcherWorker do
     else
       _ -> "unknown"
     end
+  end
+
+  defp set_priority(supervisor, avg_response_time) do
+    mailbox_size = Process.info(self())[:message_queue_len]
+    p = avg_response_time * mailbox_size
+    Pigeon.Registry.unregister(supervisor)
+    Pigeon.Registry.register(supervisor, p)
   end
 end
