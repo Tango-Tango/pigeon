@@ -43,7 +43,12 @@ defmodule Pigeon.DispatcherWorker do
     case opts[:adapter].init(opts) do
       {:ok, state} ->
         Pigeon.Registry.register(opts[:supervisor])
-        state = Map.put(state, :timing_data, TimingData.new(opts))
+
+        state =
+          state
+          |> Map.put(:timing_data, TimingData.new(opts))
+          |> Map.put(:on_timeout, opts[:on_timeout])
+
         {:ok, %{adapter: opts[:adapter], state: state}}
 
       {:error, reason} ->
@@ -93,7 +98,7 @@ defmodule Pigeon.DispatcherWorker do
   end
 
   @impl GenServer
-  def handle_cast({:update_timing_data, response_time_native}, _from, %{
+  def handle_cast({:update_timing_data, response_time_native}, %{
         adapter: adapter,
         state: state
       }) do
@@ -105,6 +110,15 @@ defmodule Pigeon.DispatcherWorker do
       )
 
     {:noreply, %{adapter: adapter, state: state}}
+  end
+
+  @impl GenServer
+  def handle_cast(:handle_timeout, s) do
+    if s.state[:on_timeout] == :stop do
+      {:stop, :timeout, s}
+    else
+      {:noreply, s}
+    end
   end
 
   defp peername(state) do

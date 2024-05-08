@@ -133,11 +133,15 @@ defmodule Pigeon do
         Map.merge(x, %{worker_info: worker_info, response_time_ms: rtt_ms})
     after
       timeout ->
-        Map.merge(notification, %{
-          response: :timeout,
-          worker_info: worker_info,
-          response_time_ms: timeout
-        })
+        notification =
+          Map.merge(notification, %{
+            response: :timeout,
+            worker_info: worker_info,
+            response_time_ms: timeout
+          })
+
+        GenServer.cast(worker_pid, {:handle_timeout, notification})
+        notification
     end
   end
 
