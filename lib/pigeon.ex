@@ -168,11 +168,14 @@ defmodule Pigeon do
   defp get_worker_pid({:error, {:already_started, pid}}), do: pid
   defp get_worker_pid(_), do: nil
 
-  defp calculate_timeout(timeout, worker_info) do
-    if timeout == :dynamic do
-      worker_info.average_response_time_ms * 2
-    else
-      timeout
-    end
-  end
+  defp calculate_timeout(:dynamic, worker_info),
+    do: worker_info.average_response_time_ms * 2
+
+  defp calculate_timeout({:dynamic, max}, worker_info),
+    do: min(worker_info.average_response_time_ms * 2, max)
+
+  defp calculate_timeout({:dynamic, max, multiplier}, worker_info),
+    do: min(worker_info.average_response_time_ms * multiplier, max)
+
+  defp calculate_timeout(timeout, _), do: timeout
 end
