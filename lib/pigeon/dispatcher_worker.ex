@@ -1,25 +1,37 @@
 defmodule Pigeon.DispatcherWorker do
   @moduledoc false
 
+  use GenServer
+
   defmodule TimingData do
     @doc """
     Maintain an exponential moving average of response times
     """
-    @initial_average_native System.convert_time_unit(100, :millisecond, :native)
-    defstruct average_native: @initial_average_native, alpha: 0.2
+    @default_alpha 0.2
+    @default_initial_average_ms 100
+    defstruct [:average_native, :alpha]
 
     @type t :: %__MODULE__{
             average_native: non_neg_integer,
             alpha: float
           }
 
+    def new(opts \\ []) do
+      average_ms =
+        Keyword.get(opts, :initial_average_ms, @default_initial_average_ms)
+
+      average_native =
+        System.convert_time_unit(average_ms, :millisecond, :native)
+
+      alpha = Keyword.get(opts, :alpha, @default_alpha)
+      %TimingData{average_native: average_native, alpha: alpha}
+    end
+
     @spec update(t(), non_neg_integer()) :: %TimingData{}
     def update(d = %{average_native: avg, alpha: a}, t) do
       %{d | average_native: round(a * t + (1 - a) * avg)}
     end
   end
-
-  use GenServer
 
   def start_link(opts) do
     opts[:adapter] || raise "adapter is not specified"
@@ -31,7 +43,7 @@ defmodule Pigeon.DispatcherWorker do
     case opts[:adapter].init(opts) do
       {:ok, state} ->
         Pigeon.Registry.register(opts[:supervisor])
-        state = Map.put(state, :timing_data, %TimingData{})
+        state = Map.put(state, :timing_data, TimingData.new(opts))
         {:ok, %{adapter: opts[:adapter], state: state}}
 
       {:error, reason} ->
