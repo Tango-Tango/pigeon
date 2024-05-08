@@ -128,7 +128,7 @@ defmodule Pigeon do
     receive do
       {:"$push", ^ref, x} ->
         rtt = :erlang.monotonic_time() - t0
-        GenServer.call(worker_pid, {:update_timing_data, rtt})
+        GenServer.cast(worker_pid, {:update_timing_data, rtt})
         rtt_ms = System.convert_time_unit(rtt, :native, :millisecond)
         Map.merge(x, %{worker_info: worker_info, response_time_ms: rtt_ms})
     after

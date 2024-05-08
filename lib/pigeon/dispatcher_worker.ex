@@ -93,7 +93,7 @@ defmodule Pigeon.DispatcherWorker do
   end
 
   @impl GenServer
-  def handle_call({:update_timing_data, response_time_native}, _from, %{
+  def handle_cast({:update_timing_data, response_time_native}, _from, %{
         adapter: adapter,
         state: state
       }) do
