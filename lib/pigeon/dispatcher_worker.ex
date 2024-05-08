@@ -44,11 +44,8 @@ defmodule Pigeon.DispatcherWorker do
 
   @impl GenServer
   def handle_info({:"$push", notification}, %{adapter: adapter, state: state}) do
-    t0 = :erlang.monotonic_time()
-
     case adapter.handle_push(notification, state) do
       {:noreply, new_state} ->
-        new_state = update_timing_data(new_state, t0)
         {:noreply, %{adapter: adapter, state: new_state}}
 
       {:stop, reason, new_state} ->
@@ -83,6 +80,21 @@ defmodule Pigeon.DispatcherWorker do
     {:reply, info, %{adapter: adapter, state: state}}
   end
 
+  @impl GenServer
+  def handle_call({:update_timing_data, response_time_native}, _from, %{
+        adapter: adapter,
+        state: state
+      }) do
+    state =
+      Map.update!(
+        state,
+        :timing_data,
+        &TimingData.update(&1, response_time_native)
+      )
+
+    {:noreply, %{adapter: adapter, state: state}}
+  end
+
   defp peername(state) do
     with %{socket: socket} <- state,
          %{connection: connection} <- :sys.get_state(socket),
@@ -94,13 +106,5 @@ defmodule Pigeon.DispatcherWorker do
     else
       _ -> "unknown"
     end
-  end
-
-  defp update_timing_data(state, t0) do
-    Map.update!(
-      state,
-      :timing_data,
-      &TimingData.update(&1, :erlang.monotonic_time() - t0)
-    )
   end
 end
