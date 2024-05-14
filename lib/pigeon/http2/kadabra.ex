@@ -12,6 +12,10 @@ defmodule Pigeon.Http2.Client.Kadabra do
     Kadabra.open(host, ssl: opts)
   end
 
+  def close(pid) do
+    Kadabra.close(pid)
+  end
+
   def send_request(pid, headers, data) do
     Kadabra.request(pid, headers: headers, body: data)
   end

@@ -201,7 +201,12 @@ defmodule Pigeon.APNS do
     Client.default().send_ping(state.socket, encoded_now)
     Configurable.schedule_ping(state.config)
 
-    metadata = %{uri: state.config.uri, client: self(), connection: state.socket}
+    metadata = %{
+      uri: state.config.uri,
+      client: self(),
+      connection: state.socket
+    }
+
     :telemetry.execute([:pigeon, :ping, :start], %{}, metadata)
     {:noreply, state}
   end
@@ -226,16 +231,27 @@ defmodule Pigeon.APNS do
   @impl true
   def handle_info(msg, state) do
     case Client.default().handle_end_stream(msg, state) do
-      {:ok, %Stream{} = stream} -> process_end_stream(stream, state)
+      {:ok, %Stream{} = stream} ->
+        process_end_stream(stream, state)
+
       {:pong, data} ->
         <<parsed_data::signed-64>> = data
+
         if parsed_data != 0 do
           duration = System.monotonic_time() - parsed_data
           metadata = generate_telemetry_metadata(state)
-          :telemetry.execute([:pigeon, :ping, :stop], %{duration: duration}, metadata)
+
+          :telemetry.execute(
+            [:pigeon, :ping, :stop],
+            %{duration: duration},
+            metadata
+          )
         end
+
         {:noreply, state}
-      _else -> {:noreply, state}
+
+      _else ->
+        {:noreply, state}
     end
   end
 
@@ -243,7 +259,12 @@ defmodule Pigeon.APNS do
     with %{connection: connection} <- :sys.get_state(state.socket),
          %{config: %{socket: kadabra_socket}} <- :sys.get_state(connection),
          %{socket: socket} <- :sys.get_state(kadabra_socket) do
-      %{uri: state.config.uri, client: self(), connection: state.socket, socket: socket}
+      %{
+        uri: state.config.uri,
+        client: self(),
+        connection: state.socket,
+        socket: socket
+      }
     else
       nil ->
         %{uri: state.config.uri, client: self(), connection: state.socket}
@@ -257,6 +278,7 @@ defmodule Pigeon.APNS do
   defp connect_socket(config, tries) do
     case Configurable.connect(config) do
       {:ok, socket} -> {:ok, socket}
+      {:error, :duplicate} -> connect_socket(config, tries)
       {:error, _reason} -> connect_socket(config, tries + 1)
     end
   end

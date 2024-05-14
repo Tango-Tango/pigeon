@@ -5,13 +5,15 @@ defmodule Pigeon.FCM.Config do
             project_id: nil,
             service_account_json: nil,
             ping_period: 60_000,
-            uri: 'fcm.googleapis.com'
+            uri: ~c"fcm.googleapis.com",
+            allow_duplicate_connections: true
 
   @type t :: %__MODULE__{
           port: pos_integer,
           project_id: binary,
           service_account_json: binary,
-          uri: charlist
+          uri: charlist,
+          allow_duplicate_connections: boolean
         }
 
   @doc ~S"""
@@ -46,7 +48,9 @@ defmodule Pigeon.FCM.Config do
       project_id: project_id,
       service_account_json: service_account_json,
       ping_period: Keyword.get(opts, :ping_period, 60_000),
-      uri: Keyword.get(opts, :uri, 'fcm.googleapis.com')
+      uri: Keyword.get(opts, :uri, ~c"fcm.googleapis.com"),
+      allow_duplicate_connections:
+        Keyword.get(opts, :allow_duplicate_connections, true)
     }
   end
 
@@ -84,11 +88,14 @@ defimpl Pigeon.Configurable, for: Pigeon.FCM.Config do
 
   # Configurable Callbacks
 
-  @spec connect(any) :: {:ok, sock} | {:error, String.t()}
+  @spec connect(any) :: {:ok, sock} | {:error, String.t() | atom()}
   def connect(%Config{uri: uri} = config) do
     case connect_socket_options(config) do
       {:ok, options} ->
-        Pigeon.Http2.Client.default().connect(uri, :https, options)
+        Pigeon.Http2.Client.default().connect(uri |> dbg, :https, options)
+        |> Pigeon.SocketTracker.check_duplicate(
+          config.allow_duplicate_connections
+        )
     end
   end
 

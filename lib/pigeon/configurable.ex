@@ -3,7 +3,7 @@ defprotocol Pigeon.Configurable do
 
   @type sock :: {:sslsocket, any, pid | {any, any}}
 
-  @spec connect(any) :: {:ok, sock} | {:error, String.t()}
+  @spec connect(any) :: {:ok, sock} | {:error, String.t() | atom()}
   def connect(config)
 
   def push_headers(config, notification, opts)

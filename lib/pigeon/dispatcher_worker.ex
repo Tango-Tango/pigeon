@@ -127,12 +127,8 @@ defmodule Pigeon.DispatcherWorker do
 
   defp peername(state) do
     with %{socket: socket} <- state,
-         %{connection: connection} <- :sys.get_state(socket),
-         %{config: %{socket: socket2}} <- :sys.get_state(connection),
-         %{socket: socket3} <- :sys.get_state(socket2),
-         {_, {_, port, _, _}, _} <- socket3,
-         {:ok, addr} <- :inet.peername(port) do
-      addr
+         {:ok, peername} <- Pigeon.Shared.peername(socket) do
+      peername
     else
       _ -> "unknown"
     end

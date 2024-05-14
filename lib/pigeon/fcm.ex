@@ -96,7 +96,8 @@ defmodule Pigeon.FCM do
             retries: @max_retries,
             socket: nil,
             stream_id: 1,
-            token: nil
+            token: nil,
+            allow_duplicate_connections: true
 
   @behaviour Pigeon.Adapter
 
@@ -199,7 +200,11 @@ defmodule Pigeon.FCM do
   defp connect_socket(config, tries) do
     case Configurable.connect(config) do
       {:ok, socket} ->
+        IO.puts("***** FCM ok")
         {:ok, socket}
+
+      {:error, :duplicate} ->
+        connect_socket(config, tries)
 
       {:error, reason} ->
         if tries > 0 do

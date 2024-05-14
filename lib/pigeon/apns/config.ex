@@ -5,7 +5,8 @@ defmodule Pigeon.APNS.Config do
             key: nil,
             port: 443,
             ping_period: 600_000,
-            uri: nil
+            uri: nil,
+            allow_duplicate_connections: true
 
   @typedoc ~S"""
   Certificate APNS configuration struct
@@ -28,7 +29,8 @@ defmodule Pigeon.APNS.Config do
           key: binary | nil,
           uri: binary | nil,
           port: pos_integer,
-          ping_period: pos_integer
+          ping_period: pos_integer,
+          allow_duplicate_connections: true
         }
 
   @typedoc ~S"""
@@ -54,7 +56,8 @@ defmodule Pigeon.APNS.Config do
           uri: binary,
           jwt_key: binary | {atom, binary},
           jwt_key_identifier: binary | nil,
-          jwt_team_id: binary | nil
+          jwt_team_id: binary | nil,
+          allow_duplicate_connections: true
         ]
 
   alias Pigeon.APNS.ConfigParser
@@ -77,7 +80,7 @@ defmodule Pigeon.APNS.Config do
       %Pigeon.APNS.Config{
         cert: "test/support/FakeAPNSCert.pem" |> File.read!() |> Pigeon.APNS.Config.decode_pem(),
         key: "test/support/FakeAPNSKey.pem" |> File.read!() |> Pigeon.APNS.Config.decode_pem(),
-        ping_period: 300000, 
+        ping_period: 300000,
         port: 2197,
         uri: "api.push.apple.com"
       }
@@ -88,7 +91,9 @@ defmodule Pigeon.APNS.Config do
       key: opts |> Keyword.get(:key) |> decode_pem(),
       ping_period: Keyword.get(opts, :ping_period, 600_000),
       port: Keyword.get(opts, :port, 443),
-      uri: Keyword.get(opts, :uri, ConfigParser.uri_for_mode(opts[:mode]))
+      uri: Keyword.get(opts, :uri, ConfigParser.uri_for_mode(opts[:mode])),
+      allow_duplicate_connections:
+        Keyword.get(opts, :allow_duplicate_connections, true)
     }
   end
 
@@ -125,6 +130,7 @@ defimpl Pigeon.Configurable, for: Pigeon.APNS.Config do
     options = connect_socket_options(config)
 
     Pigeon.Http2.Client.default().connect(uri, :https, options)
+    |> Pigeon.SocketTracker.check_duplicate(config.allow_duplicate_connections)
   end
 
   defdelegate push_headers(config, notification, opts), to: Shared
