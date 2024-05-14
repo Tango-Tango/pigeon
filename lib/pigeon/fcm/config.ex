@@ -92,7 +92,7 @@ defimpl Pigeon.Configurable, for: Pigeon.FCM.Config do
   def connect(%Config{uri: uri} = config) do
     case connect_socket_options(config) do
       {:ok, options} ->
-        Pigeon.Http2.Client.default().connect(uri |> dbg, :https, options)
+        Pigeon.Http2.Client.default().connect(uri, :https, options)
         |> Pigeon.SocketTracker.check_duplicate(
           config.allow_duplicate_connections
         )

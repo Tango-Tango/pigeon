@@ -15,15 +15,16 @@ defmodule Pigeon.SocketTracker do
 
   def check_duplicate({:ok, socket}, false) do
     with {:ok, peername} <- Pigeon.Shared.peername(socket),
-         dbg(peername),
          true <- :ets.insert_new(@ets_peer_table, {peername}) do
-      IO.puts("***** unique")
       {:ok, socket}
     else
       false ->
-        IO.puts("***** duplicate")
-        Process.unlink(socket)
         Pigeon.Http2.Client.default().close(socket)
+
+        receive do
+          {:closed, _pid} -> nil
+        end
+
         {:error, :duplicate}
 
       error ->
@@ -36,4 +37,18 @@ defmodule Pigeon.SocketTracker do
   end
 
   def check_duplicate(s, _), do: s
+
+  def release(socket) do
+    # The following code fails with an error that "the process is not alive or there's no
+    # process currently associated with the given name". That means when a socket is closed
+    # we don't have a way to remove the peername from the ETS table.
+    # with {:ok, peername} <- Pigeon.Shared.peername(socket),
+    #      true <- :ets.delete(@ets_peer_table, {peername}) do
+    #   {:ok, socket}
+    # else
+    #   false ->
+    #     {:error, :release_failed}
+    # end
+    {:ok, socket}
+  end
 end

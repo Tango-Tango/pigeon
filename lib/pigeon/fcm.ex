@@ -88,7 +88,7 @@ defmodule Pigeon.FCM do
   ```
   """
 
-  @max_retries 3
+  @max_retries 5
 
   defstruct config: nil,
             queue: Pigeon.NotificationQueue.new(),
@@ -155,7 +155,9 @@ defmodule Pigeon.FCM do
     {:noreply, state}
   end
 
-  def handle_info({:closed, _}, %{config: config} = state) do
+  def handle_info({:closed, pid}, %{config: config} = state) do
+    Pigeon.SocketTracker.release(pid)
+
     case connect_socket(config) do
       {:ok, socket} ->
         Configurable.schedule_ping(config)
@@ -200,7 +202,6 @@ defmodule Pigeon.FCM do
   defp connect_socket(config, tries) do
     case Configurable.connect(config) do
       {:ok, socket} ->
-        IO.puts("***** FCM ok")
         {:ok, socket}
 
       {:error, :duplicate} ->

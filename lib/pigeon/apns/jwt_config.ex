@@ -6,7 +6,8 @@ defmodule Pigeon.APNS.JWTConfig do
             ping_period: 600_000,
             port: 443,
             team_id: nil,
-            uri: nil
+            uri: nil,
+            allow_duplicate_connections: true
 
   alias Pigeon.APNS.ConfigParser
 
@@ -26,7 +27,8 @@ defmodule Pigeon.APNS.JWTConfig do
         ping_period: 600_000,
         key: nil,
         key_identifier: "ABC1234567",
-        team_id: "DEF1234567"
+        team_id: "DEF1234567",
+        allow_duplicate_connections: true
       }
   """
   @type t :: %__MODULE__{
@@ -35,7 +37,8 @@ defmodule Pigeon.APNS.JWTConfig do
           ping_period: pos_integer,
           key: binary | nil | {:error, term},
           key_identifier: binary | nil,
-          team_id: binary | nil
+          team_id: binary | nil,
+          allow_duplicate_connections: boolean()
         }
 
   @typedoc ~S"""
@@ -61,7 +64,8 @@ defmodule Pigeon.APNS.JWTConfig do
           team_id: binary | nil,
           ping_period: pos_integer,
           port: pos_integer,
-          uri: binary
+          uri: binary,
+          allow_duplicate_connections: true
         ]
 
   @doc ~S"""
@@ -75,15 +79,17 @@ defmodule Pigeon.APNS.JWTConfig do
       ...>   key_identifier: "ABC1234567",
       ...>   team_id: "DEF1234567",
       ...>   port: 2197,
-      ...>   ping_period: 300_000
+      ...>   ping_period: 300_000,
+      ...>   allow_duplicate_connections: true
       ...> )
       %Pigeon.APNS.JWTConfig{
-        uri: "api.push.apple.com", 
-        team_id: "DEF1234567", 
-        key_identifier: "ABC1234567", 
+        uri: "api.push.apple.com",
+        team_id: "DEF1234567",
+        key_identifier: "ABC1234567",
         key: File.read!("test/support/FakeAPNSAuthKey.p8"),
-        ping_period: 300000, 
-        port: 2197
+        ping_period: 300000,
+        port: 2197,
+        allow_duplicate_connections: true
       }
   """
   def new(opts) when is_list(opts) do
@@ -93,7 +99,9 @@ defmodule Pigeon.APNS.JWTConfig do
       ping_period: Keyword.get(opts, :ping_period, 600_000),
       key: decode_key(opts[:key]),
       key_identifier: Keyword.get(opts, :key_identifier),
-      team_id: Keyword.get(opts, :team_id)
+      team_id: Keyword.get(opts, :team_id),
+      allow_duplicate_connections:
+        Keyword.get(opts, :allow_duplicate_connections, true)
     }
   end
 
@@ -128,7 +136,9 @@ defimpl Pigeon.Configurable, for: Pigeon.APNS.JWTConfig do
     uri = to_charlist(uri)
 
     options = connect_socket_options(config)
+
     Pigeon.Http2.Client.default().connect(uri, :https, options)
+    |> Pigeon.SocketTracker.check_duplicate(config.allow_duplicate_connections)
   end
 
   @spec push_headers(JWTConfig.t(), Notification.t(), Keyword.t()) ::

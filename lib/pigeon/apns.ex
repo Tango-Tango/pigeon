@@ -211,7 +211,9 @@ defmodule Pigeon.APNS do
     {:noreply, state}
   end
 
-  def handle_info({:closed, _}, %{config: config} = state) do
+  def handle_info({:closed, pid}, %{config: config} = state) do
+    Pigeon.SocketTracker.release(pid)
+
     case connect_socket(config) do
       {:ok, socket} ->
         Configurable.schedule_ping(config)
