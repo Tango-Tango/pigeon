@@ -113,7 +113,7 @@ defmodule Pigeon.DispatcherWorker do
 
   @impl GenServer
   def handle_cast(:handle_timeout, state) do
-    case state[:on_timeout] do
+    case state.on_timeout do
       :stop ->
         {:stop, :timeout, state}
 

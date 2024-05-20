@@ -132,7 +132,7 @@ defmodule Pigeon do
         rtt_ms = System.convert_time_unit(rtt, :native, :millisecond)
         Map.merge(x, %{worker_info: worker_info, response_time_ms: rtt_ms})
     after
-      timeout ->
+      1 ->
         notification =
           Map.merge(notification, %{
             response: :timeout,
@@ -140,7 +140,7 @@ defmodule Pigeon do
             response_time_ms: timeout
           })
 
-        GenServer.cast(worker_pid, {:handle_timeout, notification})
+        GenServer.cast(worker_pid, :handle_timeout)
         notification
     end
   end
