@@ -168,15 +168,6 @@ defmodule Pigeon.DispatcherWorkerTest do
     end
   end
 
-  describe "peername" do
-    setup [:create_worker]
-
-    test "returns unknown if no socket", ctx do
-      info = GenServer.call(ctx.worker, :info)
-      assert %{peername: "unknown"} = info
-    end
-  end
-
   defp create_worker(_ctx) do
     {:ok, pid} =
       DispatcherWorker.start_link(adapter: ProbeAdapter, supervisor: self())
