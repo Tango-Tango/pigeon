@@ -54,7 +54,7 @@ defmodule Pigeon.Mixfile do
       {:joken, "~> 2.1"},
       {:kadabra,
        git: "https://github.com/Tango-Tango/kadabra.git",
-       ref: "28c104934d56aca2e55cde2676547fd03cba2b43"}
+       ref: "10902560dfe434c0b9962d5f75367390b1e93a5e"}
     ]
   end
 
