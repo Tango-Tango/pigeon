@@ -114,7 +114,7 @@ defmodule Pigeon.DispatcherWorker do
 
   @impl GenServer
   def handle_cast({:update_peername, peername}, state) do
-    {:noreply, %{state | peername: peername} |> dbg}
+    {:noreply, %{state | peername: peername}}
   end
 
   @impl GenServer

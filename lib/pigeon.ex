@@ -144,7 +144,7 @@ defmodule Pigeon do
           |> Map.merge(%{
             response: :timeout,
             response_time_ms: timeout,
-            peername: worker_info.peername |> dbg
+            peername: worker_info.peername
           })
 
         GenServer.cast(worker_pid, :handle_timeout)
