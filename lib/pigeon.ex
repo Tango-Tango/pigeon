@@ -129,7 +129,7 @@ defmodule Pigeon do
       {:"$push", ^ref, x} ->
         rtt = :erlang.monotonic_time() - t0
         GenServer.cast(worker_pid, {:update_timing_data, rtt})
-        GenServer.cast(worker_pid, {:update_peername, x.peername})
+        GenServer.cast(worker_pid, {:update_peername, peername(x)})
         rtt_ms = System.convert_time_unit(rtt, :native, :millisecond)
 
         x
@@ -185,4 +185,7 @@ defmodule Pigeon do
     do: min(worker_info.average_response_time_ms * multiplier, max)
 
   defp calculate_timeout(timeout, _), do: timeout
+
+  defp peername(%{peername: peername}), do: peername
+  defp peername(_), do: nil
 end
