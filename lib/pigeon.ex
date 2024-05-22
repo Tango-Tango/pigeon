@@ -129,14 +129,23 @@ defmodule Pigeon do
       {:"$push", ^ref, x} ->
         rtt = :erlang.monotonic_time() - t0
         GenServer.cast(worker_pid, {:update_timing_data, rtt})
+        GenServer.cast(worker_pid, {:update_peername, x.peername})
         rtt_ms = System.convert_time_unit(rtt, :native, :millisecond)
-        x |> Map.merge(worker_info) |> Map.put(:response_time_ms, rtt_ms)
+
+        x
+        |> Map.merge(%{
+          response_time_ms: rtt_ms,
+          average_response_time_ms: worker_info.average_response_time_ms
+        })
     after
       timeout ->
         notification =
           notification
-          |> Map.merge(worker_info)
-          |> Map.merge(%{response: :timeout, response_time_ms: timeout})
+          |> Map.merge(%{
+            response: :timeout,
+            response_time_ms: timeout,
+            peername: worker_info.peername |> dbg
+          })
 
         GenServer.cast(worker_pid, :handle_timeout)
         notification
