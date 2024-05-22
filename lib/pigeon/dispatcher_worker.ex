@@ -47,6 +47,7 @@ defmodule Pigeon.DispatcherWorker do
         state =
           state
           |> Map.put(:timing_data, TimingData.new(opts))
+          |> Map.put(:peername, nil)
           |> Map.put(:on_timeout, opts[:on_timeout])
           |> Map.put(:supervisor, opts[:supervisor])
           |> Map.put(:adapter, opts[:adapter])
@@ -90,7 +91,10 @@ defmodule Pigeon.DispatcherWorker do
         :millisecond
       )
 
-    info = %{average_response_time_ms: average_response_time_ms}
+    info = %{
+      average_response_time_ms: average_response_time_ms,
+      peername: state.peername
+    }
 
     {:reply, info, state}
   end
@@ -106,6 +110,11 @@ defmodule Pigeon.DispatcherWorker do
 
     update_priority(state)
     {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast({:update_peername, peername}, state) do
+    {:noreply, %{state | peername: peername}}
   end
 
   @impl GenServer

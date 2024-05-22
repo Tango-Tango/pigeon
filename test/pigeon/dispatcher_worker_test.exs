@@ -88,7 +88,7 @@ defmodule Pigeon.DispatcherWorkerTest do
   describe "timing data" do
     setup [:create_worker]
 
-    test "retries default timing data", ctx do
+    test "returns default timing data", ctx do
       info = GenServer.call(ctx.worker, :info)
       assert %{average_response_time_ms: 100} = info
     end
@@ -123,6 +123,21 @@ defmodule Pigeon.DispatcherWorkerTest do
       _ = GenServer.call(ctx.worker, :info)
       p = System.convert_time_unit(120, :millisecond, :native)
       assert Registry.lookup(Pigeon.Registry, self()) == [{ctx.worker, p}]
+    end
+  end
+
+  describe "peername" do
+    setup [:create_worker]
+
+    test "returns default peername", ctx do
+      info = GenServer.call(ctx.worker, :info)
+      assert %{peername: nil} = info
+    end
+
+    test "updates peername", ctx do
+      GenServer.cast(ctx.worker, {:update_peername, "peername"})
+      info = GenServer.call(ctx.worker, :info)
+      assert %{peername: "peername"} = info
     end
   end
 
