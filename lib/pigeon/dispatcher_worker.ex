@@ -33,6 +33,10 @@ defmodule Pigeon.DispatcherWorker do
     end
   end
 
+  defmodule WorkerInfo do
+    defstruct [:average_response_time_ms, :peername]
+  end
+
   def start_link(opts) do
     opts[:adapter] || raise "adapter is not specified"
     GenServer.start_link(__MODULE__, opts)
@@ -91,7 +95,7 @@ defmodule Pigeon.DispatcherWorker do
         :millisecond
       )
 
-    info = %{
+    info = %WorkerInfo{
       average_response_time_ms: average_response_time_ms,
       peername: state.peername
     }
