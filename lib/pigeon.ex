@@ -26,6 +26,7 @@ defmodule Pigeon do
   """
 
   alias Pigeon.Tasks
+  require Logger
 
   @default_timeout 5_000
 
@@ -122,7 +123,7 @@ defmodule Pigeon do
     t0 = :erlang.monotonic_time()
     start_response = push_async(pid, notification)
     worker_pid = get_worker_pid(start_response)
-    worker_info = GenServer.call(worker_pid, :info)
+    worker_info = get_worker_info(worker_pid)
     timeout = calculate_timeout(timeout, worker_info)
 
     receive do
@@ -188,4 +189,14 @@ defmodule Pigeon do
 
   defp peername(%{peername: peername}), do: peername
   defp peername(_), do: nil
+
+  defp get_worker_info(worker_pid) do
+    try do
+      GenServer.call(worker_pid, :info, 50)
+    catch
+      :exit, reason ->
+        Logger.warning("Failed to get worker info: #{inspect(reason)}")
+        %Pigeon.DispatcherWorker.WorkerInfo{}
+    end
+  end
 end
