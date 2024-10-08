@@ -2,7 +2,7 @@ defmodule Pigeon.LegacyFCM.Config do
   @moduledoc false
 
   defstruct key: nil,
-            uri: 'fcm.googleapis.com',
+            uri: "fcm.googleapis.com",
             port: 443
 
   @type t :: %__MODULE__{
@@ -23,14 +23,14 @@ defmodule Pigeon.LegacyFCM.Config do
       ...> )
       %Pigeon.LegacyFCM.Config{
         key: "fcm_key",
-        port: 5228, 
+        port: 5228,
         uri: 'test.server.example.com'
       }
   """
   def new(opts) when is_list(opts) do
     %__MODULE__{
       key: Keyword.get(opts, :key),
-      uri: Keyword.get(opts, :uri, 'fcm.googleapis.com'),
+      uri: Keyword.get(opts, :uri, "fcm.googleapis.com"),
       port: Keyword.get(opts, :port, 443)
     }
   end
