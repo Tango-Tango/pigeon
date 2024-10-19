@@ -114,6 +114,8 @@ defmodule Pigeon.Pushy do
 
   @behaviour Pigeon.Adapter
 
+  @timeout_reasons [:timeout, :connect_timeout, :checkout_timeout]
+
   @impl true
   def init(opts) do
     config = Pigeon.Pushy.Config.new(opts)
@@ -152,7 +154,7 @@ defmodule Pigeon.Pushy do
         {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
           process_response(status, body, notification)
 
-        {:error, %HTTPoison.Error{reason: :connect_timeout}} ->
+        {:error, %HTTPoison.Error{reason: r}} when r in @timeout_reasons ->
           notification
           |> Map.put(:response, :timeout)
           |> process_on_response()
