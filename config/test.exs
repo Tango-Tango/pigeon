@@ -35,4 +35,6 @@ config :pigeon, PigeonTest.FCM,
   project_id: System.get_env("FCM_PROJECT"),
   service_account_json: System.get_env("FCM_SERVICE_ACCOUNT_JSON")
 
+config :pigeon, PigeonTest.Pushy, adapter: Pigeon.Pushy, key: System.get_env("PUSHY_KEY")
+
 config :pigeon, PigeonTest.Sandbox, adapter: Pigeon.Sandbox

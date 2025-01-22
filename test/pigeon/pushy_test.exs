@@ -13,7 +13,7 @@ defmodule Pigeon.PushyTest do
 
       expected =
         {:ok,
-         %{
+         %Pigeon.Pushy{
            config: %Pigeon.Pushy.Config{
              uri: "api.pushy.me",
              key: "abc123"
@@ -47,6 +47,7 @@ defmodule Pigeon.PushyTest do
       token = "bad_token"
       n = Notification.new(token, %{"message" => "example"})
       pid = self()
+      reg_id = ""
       PigeonTest.Pushy.push(n, on_response: fn x -> send(pid, x) end)
 
       assert_receive(n = %Notification{}, 5000)
