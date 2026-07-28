@@ -6,7 +6,12 @@ defmodule Pigeon.DispatcherWorkerTest do
   defmodule ProbeAdapter do
     @default_state %{last_message: nil, all_messages: [], response_queue: []}
 
-    def init(_opts), do: {:ok, @default_state}
+    def init(opts) do
+      case Keyword.fetch(opts, :fail_init) do
+        {:ok, value} -> value
+        _ -> {:ok, @default_state}
+      end
+    end
 
     def handle_push(notification, state) do
       [response | rest_responses] = get_response_queue(state)
@@ -30,6 +35,12 @@ defmodule Pigeon.DispatcherWorkerTest do
 
     def handle_info({:probe, f, a}, state),
       do: {:noreply, apply(__MODULE__, f, a ++ [state])}
+
+    def handle_info({:stop, reason}, _state),
+      do: {:stop, reason}
+
+    def handle_info({:stop, reason, new_state}, _state),
+      do: {:stop, reason, new_state}
 
     def set_next_response(response, state) do
       %{state | response_queue: [response]}
@@ -80,6 +91,24 @@ defmodule Pigeon.DispatcherWorkerTest do
       Process.flag(:trap_exit, true)
       send(ctx.worker, {:probe, :set_next_response, [{:stop, :oh_noes}]})
       send(ctx.worker, {:"$push", "msg"})
+      assert_receive {:EXIT, _, :oh_noes}
+      Process.flag(:trap_exit, false)
+    end
+  end
+
+  describe "handle_info" do
+    setup [:create_worker]
+
+    test "Handles {:stop, reason, new_state} from the adapter", ctx do
+      Process.flag(:trap_exit, true)
+      send(ctx.worker, {:stop, :oh_noes, nil})
+      assert_receive {:EXIT, _, :oh_noes}
+      Process.flag(:trap_exit, false)
+    end
+
+    test "Handles {:stop, reason} from the adapter", ctx do
+      Process.flag(:trap_exit, true)
+      send(ctx.worker, {:stop, :oh_noes})
       assert_receive {:EXIT, _, :oh_noes}
       Process.flag(:trap_exit, false)
     end

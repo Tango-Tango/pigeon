@@ -83,6 +83,7 @@ defmodule Pigeon.DispatcherWorker do
     case state.adapter.handle_info(msg, state) do
       {:noreply, new_state} -> {:noreply, new_state}
       {:stop, reason, new_state} -> {:stop, reason, new_state}
+      {:stop, reason} -> {:stop, reason, state}
     end
   end
 
