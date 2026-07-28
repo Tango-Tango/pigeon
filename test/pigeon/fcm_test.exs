@@ -4,12 +4,18 @@ defmodule Pigeon.FCMTest do
   doctest Pigeon.FCM.Config, import: true
   doctest Pigeon.FCM.Notification, import: true
 
+  import ExUnit.CaptureLog
+
   alias Pigeon.FCM.Notification
   require Logger
 
   @data %{"message" => "Test push"}
   @invalid_project_msg ~r/^attempted to start without valid :project_id/
   @invalid_service_account_json_msg ~r/^attempted to start without valid :service_account_json/
+
+  defmodule FailingHTTP2Client do
+    def connect(_uri, _scheme, _options), do: {:error, :econnrefused}
+  end
 
   defp valid_fcm_reg_id do
     Application.get_env(:pigeon, :test)[:valid_fcm_reg_id]
@@ -28,6 +34,33 @@ defmodule Pigeon.FCMTest do
         [project_id: "example", service_account_json: nil]
         |> Pigeon.FCM.init()
       end)
+    end
+
+    test "logs the underlying error when all connection attempts fail" do
+      previous_client = Application.get_env(:pigeon, :http2_client)
+      Application.put_env(:pigeon, :http2_client, FailingHTTP2Client)
+
+      on_exit(fn ->
+        if previous_client do
+          Application.put_env(:pigeon, :http2_client, previous_client)
+        else
+          Application.delete_env(:pigeon, :http2_client)
+        end
+      end)
+
+      log =
+        capture_log(fn ->
+          assert {:stop, :econnrefused} =
+                   Pigeon.FCM.init(
+                     project_id: "example",
+                     service_account_json: "{}"
+                   )
+        end)
+
+      assert log =~
+               "Failed to connect to FCM endpoint fcm.googleapis.com after 4 attempts"
+
+      assert log =~ ":econnrefused"
     end
   end
 

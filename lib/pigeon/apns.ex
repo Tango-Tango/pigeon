@@ -157,9 +157,13 @@ defmodule Pigeon.APNS do
 
   @behaviour Pigeon.Adapter
 
+  require Logger
+
   alias Pigeon.{Configurable, NotificationQueue}
   alias Pigeon.APNS.ConfigParser
   alias Pigeon.Http2.{Client, Stream}
+
+  @max_connect_attempts 3
 
   @impl true
   def init(opts) do
@@ -250,14 +254,25 @@ defmodule Pigeon.APNS do
     end
   end
 
-  defp connect_socket(config), do: connect_socket(config, 0)
+  defp connect_socket(config), do: connect_socket(config, @max_connect_attempts)
 
-  defp connect_socket(_config, 3), do: {:error, :timeout}
-
-  defp connect_socket(config, tries) do
+  defp connect_socket(config, attempts_remaining) do
     case Configurable.connect(config) do
-      {:ok, socket} -> {:ok, socket}
-      {:error, _reason} -> connect_socket(config, tries + 1)
+      {:ok, socket} ->
+        {:ok, socket}
+
+      {:error, _reason} when attempts_remaining > 1 ->
+        connect_socket(config, attempts_remaining - 1)
+
+      {:error, reason} ->
+        Logger.error(
+          "Failed to connect to APNS endpoint #{config.uri} after #{@max_connect_attempts} attempts: #{inspect(reason)}",
+          apns_uri: config.uri,
+          connection_attempts: @max_connect_attempts,
+          reason: inspect(reason)
+        )
+
+        {:error, :timeout}
     end
   end
 

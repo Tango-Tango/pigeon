@@ -5,10 +5,16 @@ defmodule Pigeon.APNSTest do
   doctest Pigeon.APNS.JWTConfig, import: true
   doctest Pigeon.APNS.Notification
 
+  import ExUnit.CaptureLog
+
   @invalid_cert_msg ~r/^attempted to start without valid certificate/
   @invalid_key_msg ~r/^attempted to start without valid key/
   @invalid_team_id_msg ~r/^attempted to start without valid team_id/
   @invalid_key_id_msg ~r/^attempted to start without valid key_identifier/
+
+  defmodule FailingHTTP2Client do
+    def connect(_uri, _scheme, _options), do: {:error, :econnrefused}
+  end
 
   def test_message(msg) do
     "#{DateTime.to_string(DateTime.utc_now())} - #{msg}"
@@ -36,6 +42,34 @@ defmodule Pigeon.APNSTest do
   end
 
   describe "init/1" do
+    test "logs the underlying error when all connection attempts fail" do
+      previous_client = Application.get_env(:pigeon, :http2_client)
+      Application.put_env(:pigeon, :http2_client, FailingHTTP2Client)
+
+      on_exit(fn ->
+        if previous_client do
+          Application.put_env(:pigeon, :http2_client, previous_client)
+        else
+          Application.delete_env(:pigeon, :http2_client)
+        end
+      end)
+
+      log =
+        capture_log(fn ->
+          assert {:stop, :timeout} =
+                   Pigeon.APNS.init(
+                     cert: File.read!("test/support/FakeAPNSCert.pem"),
+                     key: File.read!("test/support/FakeAPNSKey.pem"),
+                     mode: :dev
+                   )
+        end)
+
+      assert log =~
+               "Failed to connect to APNS endpoint api.development.push.apple.com after 3 attempts"
+
+      assert log =~ ":econnrefused"
+    end
+
     test "raises if configured with invalid cert raw text" do
       assert_raise(Pigeon.ConfigError, @invalid_cert_msg, fn ->
         [
