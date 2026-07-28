@@ -157,9 +157,13 @@ defmodule Pigeon.APNS do
 
   @behaviour Pigeon.Adapter
 
+  require Logger
+
   alias Pigeon.{Configurable, NotificationQueue}
   alias Pigeon.APNS.ConfigParser
   alias Pigeon.Http2.{Client, Stream}
+
+  @max_connect_attempts 3
 
   @impl true
   def init(opts) do
@@ -201,7 +205,12 @@ defmodule Pigeon.APNS do
     Client.default().send_ping(state.socket, encoded_now)
     Configurable.schedule_ping(state.config)
 
-    metadata = %{uri: state.config.uri, client: self(), connection: state.socket}
+    metadata = %{
+      uri: state.config.uri,
+      client: self(),
+      connection: state.socket
+    }
+
     :telemetry.execute([:pigeon, :ping, :start], %{}, metadata)
     {:noreply, state}
   end
@@ -226,16 +235,27 @@ defmodule Pigeon.APNS do
   @impl true
   def handle_info(msg, state) do
     case Client.default().handle_end_stream(msg, state) do
-      {:ok, %Stream{} = stream} -> process_end_stream(stream, state)
+      {:ok, %Stream{} = stream} ->
+        process_end_stream(stream, state)
+
       {:pong, data} ->
         <<parsed_data::signed-64>> = data
+
         if parsed_data != 0 do
           duration = System.monotonic_time() - parsed_data
           metadata = generate_telemetry_metadata(state)
-          :telemetry.execute([:pigeon, :ping, :stop], %{duration: duration}, metadata)
+
+          :telemetry.execute(
+            [:pigeon, :ping, :stop],
+            %{duration: duration},
+            metadata
+          )
         end
+
         {:noreply, state}
-      _else -> {:noreply, state}
+
+      _else ->
+        {:noreply, state}
     end
   end
 
@@ -243,21 +263,37 @@ defmodule Pigeon.APNS do
     with %{connection: connection} <- :sys.get_state(state.socket),
          %{config: %{socket: kadabra_socket}} <- :sys.get_state(connection),
          %{socket: socket} <- :sys.get_state(kadabra_socket) do
-      %{uri: state.config.uri, client: self(), connection: state.socket, socket: socket}
+      %{
+        uri: state.config.uri,
+        client: self(),
+        connection: state.socket,
+        socket: socket
+      }
     else
       nil ->
         %{uri: state.config.uri, client: self(), connection: state.socket}
     end
   end
 
-  defp connect_socket(config), do: connect_socket(config, 0)
+  defp connect_socket(config), do: connect_socket(config, @max_connect_attempts)
 
-  defp connect_socket(_config, 3), do: {:error, :timeout}
-
-  defp connect_socket(config, tries) do
+  defp connect_socket(config, attempts_remaining) do
     case Configurable.connect(config) do
-      {:ok, socket} -> {:ok, socket}
-      {:error, _reason} -> connect_socket(config, tries + 1)
+      {:ok, socket} ->
+        {:ok, socket}
+
+      {:error, _reason} when attempts_remaining > 1 ->
+        connect_socket(config, attempts_remaining - 1)
+
+      {:error, reason} ->
+        Logger.error(
+          "Failed to connect to APNS endpoint #{config.uri} after #{@max_connect_attempts} attempts: #{inspect(reason)}",
+          apns_uri: config.uri,
+          connection_attempts: @max_connect_attempts,
+          reason: inspect(reason)
+        )
+
+        {:error, reason}
     end
   end
 

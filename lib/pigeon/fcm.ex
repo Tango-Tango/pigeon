@@ -87,8 +87,10 @@ defmodule Pigeon.FCM do
   YourApp.FCM.push(n)
   ```
   """
+  require Logger
 
   @max_retries 3
+  @max_connect_attempts @max_retries + 1
 
   defstruct config: nil,
             queue: Pigeon.NotificationQueue.new(),
@@ -201,12 +203,18 @@ defmodule Pigeon.FCM do
       {:ok, socket} ->
         {:ok, socket}
 
+      {:error, _reason} when tries > 0 ->
+        connect_socket(config, tries - 1)
+
       {:error, reason} ->
-        if tries > 0 do
-          connect_socket(config, tries - 1)
-        else
-          {:error, reason}
-        end
+        Logger.error(
+          "Failed to connect to FCM endpoint #{config.uri} after #{@max_connect_attempts} attempts: #{inspect(reason)}",
+          fcm_uri: config.uri,
+          connection_attempts: @max_connect_attempts,
+          reason: inspect(reason)
+        )
+
+        {:error, reason}
     end
   end
 
