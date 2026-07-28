@@ -109,6 +109,7 @@ defmodule Pigeon.Pushy do
   require Logger
 
   alias Pigeon.Pushy.{ResultParser}
+  alias Pigeon.Configurable
 
   defstruct config: nil
 
@@ -144,13 +145,11 @@ defmodule Pigeon.Pushy do
 
   defp do_push(notification, state) do
     response = fn notification ->
-      encoded_notification = encode_requests(notification)
+      encoded_notification = Configurable.push_payload(state.config, notification, [])
+      headers = Configurable.push_headers(state.config, notification, [])
 
-      case HTTPoison.post(
-             pushy_uri(state.config),
-             encoded_notification,
-             pushy_headers()
-           ) do
+
+      case HTTPoison.post(pushy_uri(state.config), encoded_notification, headers) do
         {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
           process_response(status, body, notification)
 
@@ -167,40 +166,6 @@ defmodule Pigeon.Pushy do
 
   defp pushy_uri(%Pigeon.Pushy.Config{uri: base_uri, key: secret_key}) do
     "https://#{base_uri}/push/?api_key=#{secret_key}"
-  end
-
-  def pushy_headers() do
-    [
-      {"Content-Type", "application/json"},
-      {"Accept", "application/json"}
-    ]
-  end
-
-  defp encode_requests(notif) do
-    %{}
-    |> encode_to(notif.to)
-    |> encode_data(notif.data)
-    |> maybe_encode_attr("time_to_live", notif.time_to_live)
-    |> maybe_encode_attr("content_available", notif.content_available)
-    |> maybe_encode_attr("mutable_content", notif.mutable_content)
-    |> maybe_encode_attr("notification", notif.notification)
-    |> maybe_encode_attr("schedule", notif.schedule)
-    |> maybe_encode_attr("collapse_key", notif.collapse_key)
-    |> Pigeon.json_library().encode!()
-  end
-
-  defp encode_to(map, value) do
-    Map.put(map, "to", value)
-  end
-
-  defp encode_data(map, value) do
-    Map.put(map, "data", value)
-  end
-
-  defp maybe_encode_attr(map, _key, nil), do: map
-
-  defp maybe_encode_attr(map, key, val) do
-    Map.put(map, key, val)
   end
 
   defp process_response(200, body, notification),

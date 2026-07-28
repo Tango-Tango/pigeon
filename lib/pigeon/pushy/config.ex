@@ -54,7 +54,7 @@ defmodule Pigeon.Pushy.Config do
       ...>   port: 443
       ...> )
       %Pigeon.Pushy.Config{
-        key: System.get_env("PUSHY_SECRET_KEY")
+        key: System.get_env("PUSHY_SECRET_KEY"),
         port: 443,
         uri: "api.pushy.me"
       }
@@ -83,14 +83,58 @@ defmodule Pigeon.Pushy.Config do
 
   @spec validate!(any) :: :ok | no_return
   def validate!(config) do
-    if valid?(config) do
-      :ok
-    else
+    Pigeon.Configurable.validate!(config)
+  end
+end
+
+defimpl Pigeon.Configurable, for: Pigeon.Pushy.Config do
+  @moduledoc false
+
+  require Logger
+
+  alias Pigeon.Encodable
+  alias Pigeon.Pushy.{Config}
+
+  @type sock :: {:sslsocket, any, pid | {any, any}}
+
+  # Configurable Callbacks
+
+  @spec connect(any) :: {:ok, sock} | {:error, String.t()}
+  def connect(_) do
+    {:error, "Not supported. pushy uses an HTTP1 adapter"}
+  end
+
+  def push_headers(%Config{}, _notification, _opts) do
+    [
+      {"Content-Type", "application/json"},
+      {"Accept", "application/json"}
+    ]
+  end
+
+  def push_payload(_config, notification, _opts) do
+    Encodable.binary_payload(notification)
+  end
+
+  def handle_end_stream(_config, _stream, _notif) do
+    {:error, "Not supported. pushy uses an HTTP1 adapter"}
+  end
+
+  def schedule_ping(_config), do: :ok
+
+  def close(_config), do: nil
+
+  @spec validate!(any) :: :ok | no_return
+  def validate!(config) do
+    if !valid_item?(config.uri) or !valid_item?(config.key) do
       raise Pigeon.ConfigError,
         reason: "attempted to start without valid key or uri",
         config: redact(config)
     end
+
+    :ok
   end
+
+  defp valid_item?(item), do: is_binary(item) and String.length(item) > 0
 
   defp redact(config) do
     [:key]
